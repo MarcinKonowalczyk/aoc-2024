@@ -93,7 +93,7 @@ if [ $EXTENSION = "zig" ]; then
             if [ $? -ne 0 ]; then
                 exit 1
             fi
-            echo hi | ./zig-out/bin/day${DAY}_${PART}
+            cat $TEST_FILE_PATH | ./zig-out/bin/day${DAY}_${PART}
             # ./zig-out/bin/day${DAY}_${PART}
         )
         # echo $TEST_FILE_PATH

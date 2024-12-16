@@ -44,21 +44,6 @@ fn readAllStdin(allocator: std.mem.Allocator) ![]u8 {
     return buff;
 }
 
-// fn splitLines(allocator: std.mem.Allocator, input: []u8) ![][]u8 {
-//     var lines = std.ArrayList([]u8).init(allocator);
-//     defer lines.deinit();
-
-//     var start: usize = 0;
-//     for (input) |c, i| {
-//         if (c == '\n') {
-//             const line = input[start..i];
-//             try lines.append(line);
-//             start = i + 1;
-//         }
-//     }
-//     return lines.items;
-// }
-
 pub fn main() !void {
     print("hello from main\n", .{});
 
@@ -68,7 +53,7 @@ pub fn main() !void {
     const inbuff = try readAllStdin(allocator);
     defer allocator.free(inbuff);
 
-    // print("--------------------------------------------\n{s}\n--------------------------------------------\n", .{inbuff});
+    print("--------------------------------------------\n{s}\n--------------------------------------------\n", .{inbuff});
     // print("The input is: {s}\n", .{inbuff2});
 
     // Check how many bytes are available to read in stdin
