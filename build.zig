@@ -43,8 +43,11 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    // List all the folders in the src directory
+    const stdin = b.addModule("stdin", .{
+        .root_source_file = b.path("src/stdin.zig"),
+    });
 
+    // List all the folders in the src directory
     const src_dir = b.pathFromRoot("src");
     // print("src_dir: {s}\n", .{src_dir});
     var dir = std.fs.openDirAbsolute(src_dir, .{ .iterate = true }) catch |err| {
@@ -100,7 +103,6 @@ pub fn build(b: *std.Build) void {
             print("Error parsing path: {s}\n", .{@errorName(err)});
             return;
         };
-        // print("{d} {d}\n", .{ dp.@"0", dp.@"1" });
 
         const exe_name = std.fmt.allocPrint(
             b.allocator,
@@ -110,7 +112,6 @@ pub fn build(b: *std.Build) void {
             print("Error formatting exe name: {s}\n", .{@errorName(err)});
             return;
         };
-        // print("exe_name: {s}\n", .{exe_name});
 
         const root_source_file = b.allocator.alloc(u8, 4 + path.len) catch |err| {
             print("Error allocating root source file: {s}\n", .{@errorName(err)});
@@ -145,6 +146,9 @@ pub fn build(b: *std.Build) void {
         // };
     }
 
+    for (execs.items) |exe| {
+        exe.root_module.addImport("stdin", stdin);
+    }
     // Add all the execs to the install step
     for (execs.items) |exe| {
         b.installArtifact(exe);
