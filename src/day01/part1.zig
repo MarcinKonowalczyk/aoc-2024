@@ -7,7 +7,6 @@ pub fn main() !void {
 
     const allocator = std.heap.page_allocator;
 
-    // Read from stdin
     const inbuff = try stdin.readAllStdin(allocator);
     defer allocator.free(inbuff);
 
@@ -18,7 +17,7 @@ pub fn main() !void {
         print("{d}: {s}\n", .{ i, line });
     }
 
-    const answer = 42;
+    const answer = -1;
 
     const stdout = std.io.getStdOut().writer();
     try stdout.print("{d}", .{answer});

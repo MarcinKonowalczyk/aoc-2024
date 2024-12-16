@@ -1,13 +1,13 @@
 const std = @import("std");
 
+const max_idle = 10; // Max number of idle loops before deciding we have no more input
+
 /// Read all available bytes from stdin. The user is responsible for freeing the memory.
 pub fn readAllStdin(allocator: std.mem.Allocator) ![]u8 {
     const chunk = 128;
     var buff = try allocator.alloc(u8, chunk);
 
     var n: usize = 0;
-
-    const max_idle = 10; // Max number of idle loops before deciding we have no more input
     var idle: u8 = max_idle;
     const loop_timeout = 1000 * std.time.ns_per_us; // 1ms
     var poller = std.io.poll(

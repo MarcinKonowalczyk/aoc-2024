@@ -98,6 +98,13 @@ if [ $EXTENSION = "zig" ]; then
         )
         # echo $TEST_FILE_PATH
         # echo $FULL_FILE_PATH
+    elif [[ $FILENAME == stdin.zig ]]; then
+            (
+            echo "Running build.zig"
+            cd $ROOT_FOLDER
+            zig build
+            cat ./src/stdin.zig | ./zig-out/bin/day01_1
+        )
     elif [[ $FILENAME == build.zig ]]; then
         (
             echo "Running build.zig"
