@@ -3,6 +3,17 @@ const Tuple = std.meta.Tuple;
 const print = std.debug.print;
 const memcopy = std.mem.copyForwards;
 
+fn strcmp(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    return std.mem.eql(u8, a, b);
+}
+
+fn strcopy(alloc: std.mem.Allocator, s: []const u8) ![]u8 {
+    const result = try alloc.alloc(u8, s.len);
+    memcopy(u8, result, s);
+    return result;
+}
+
 // Expect something like "day00/part0.zig"
 fn relativePathToDayAndPart(path: []const u8) !Tuple(&.{ u8, u8 }) {
     if (!std.mem.eql(u8, path[0..3], "day")) {
@@ -16,7 +27,7 @@ fn relativePathToDayAndPart(path: []const u8) !Tuple(&.{ u8, u8 }) {
     }
 
     const day = try std.fmt.parseInt(u8, path[3..5], 10);
-    if (day < 1 or day > 25) {
+    if (day < 0 or day > 25) {
         return error.InvalidDay;
     }
 
@@ -31,7 +42,7 @@ fn relativePathToDayAndPart(path: []const u8) !Tuple(&.{ u8, u8 }) {
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -50,10 +61,7 @@ pub fn build(b: *std.Build) void {
     // List all the folders in the src directory
     const src_dir = b.pathFromRoot("src");
     // print("src_dir: {s}\n", .{src_dir});
-    var dir = std.fs.openDirAbsolute(src_dir, .{ .iterate = true }) catch |err| {
-        print("Error opening directory: {s}\n", .{@errorName(err)});
-        return;
-    };
+    var dir = try std.fs.openDirAbsolute(src_dir, .{ .iterate = true });
     defer dir.close();
 
     var walker = dir.walk(b.allocator) catch |err| {
@@ -62,30 +70,59 @@ pub fn build(b: *std.Build) void {
     };
     defer walker.deinit();
 
-    var paths = std.ArrayList([]const u8).init(b.allocator);
-    defer paths.deinit();
+    var part_paths = std.ArrayList([]const u8).init(b.allocator);
+    defer part_paths.deinit();
+
+    var test_paths = std.ArrayList([]const u8).init(b.allocator);
+    defer test_paths.deinit();
 
     while (true) {
         const maybe_entry = walker.next() catch |err| {
             print("Error walking directory: {s}\n", .{@errorName(err)});
             return;
         };
-        if (maybe_entry == null) {
+        if (maybe_entry) |entry| {
+            if (entry.kind == .file) {
+                {
+                    // const path = strcopy(b.allocator, entry.path) catch |err| {
+                    //     print("Error copying path: {s}\n", .{@errorName(err)});
+                    //     return;
+                    // };
+                    if (strcmp(entry.basename, "tests.zig")) {
+                        try test_paths.append(try strcopy(b.allocator, entry.path));
+                        // print("Found test file: {s}\n", .{entry.basename});
+                    } else if (entry.basename.len >= 4 and strcmp(entry.basename[0..4], "part")) {
+                        try part_paths.append(try strcopy(b.allocator, entry.path));
+                        // print("Found file: {s}\n", .{entry.basename});
+                    }
+                }
+            }
+        } else {
             break;
         }
-        if (maybe_entry.?.kind != .file) {
-            continue;
-        }
-        const path = b.allocator.alloc(u8, maybe_entry.?.path.len) catch |err| {
-            print("Error allocating path: {s}\n", .{@errorName(err)});
-            return;
-        };
-        memcopy(u8, path, maybe_entry.?.path);
 
-        paths.append(path) catch |err| {
-            print("Error appending entry: {s}\n", .{@errorName(err)});
-            return;
-        };
+        // const path = b.allocator.alloc(u8, maybe_entry.?.path.len) catch |err| {
+        //     print("Error allocating path: {s}\n", .{@errorName(err)});
+        //     return;
+        // };
+        // memcopy(u8, path, maybe_entry.?.path);
+
+        // part_paths.append(path) catch |err| {
+        // print("Error appending entry: {s}\n", .{@errorName(err)});
+        // return;
+        // };
+
+        // print("Found file: {s}\n", .{maybe_entry.?.basename});
+    }
+
+    print("Found {d} test files\n", .{test_paths.items.len});
+    for (test_paths.items) |path| {
+        print("Found test file: {s}\n", .{path});
+    }
+
+    print("Found {d} files\n", .{part_paths.items.len});
+    for (part_paths.items) |path| {
+        print("Found file: {s}\n", .{path});
     }
 
     // Add all the executables
@@ -94,10 +131,10 @@ pub fn build(b: *std.Build) void {
 
     // var tests = std.ArrayList(*std.Build.Step.Test).init(b.allocator);
     // defer tests.deinit();
-    for (paths.items) |path| {
+    for (part_paths.items) |path| {
         const dp = relativePathToDayAndPart(path) catch |err| {
             if (err == error.UnexpectedPath) {
-                print("Skipping file: {s}\n", .{path});
+                // print("Skipping file: {s}\n", .{path});
                 continue;
             }
             print("Error parsing path: {s}\n", .{@errorName(err)});

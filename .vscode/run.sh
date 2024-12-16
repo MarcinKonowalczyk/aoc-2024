@@ -90,10 +90,8 @@ if [ $EXTENSION = "zig" ]; then
         (
             cd $ROOT_FOLDER
             zig build
-            if [ $? -ne 0 ]; then
-                exit 1
-            fi
-            cat $TEST_FILE_PATH | ./zig-out/bin/day${DAY}_${PART}
+            [ $? -ne 0 ] && exit 1
+            cat $TEST_FILE_PATH | ./zig-out/bin/day${DAY}_${PART} | tee >(pbcopy)
             # ./zig-out/bin/day${DAY}_${PART}
         )
         # echo $TEST_FILE_PATH
@@ -103,6 +101,7 @@ if [ $EXTENSION = "zig" ]; then
             echo "Running build.zig"
             cd $ROOT_FOLDER
             zig build
+            [ $? -ne 0 ] && exit 1
             cat ./src/stdin.zig | ./zig-out/bin/day01_1
         )
     elif [[ $FILENAME == build.zig ]]; then

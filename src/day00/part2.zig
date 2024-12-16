@@ -3,15 +3,13 @@ const print = std.debug.print;
 const stdin = @import("stdin");
 
 pub fn main() !void {
-    print("hello from main\n", .{});
+    const alloc = std.heap.page_allocator;
 
-    const allocator = std.heap.page_allocator;
+    const in = try stdin.readAllStdin(alloc);
+    defer alloc.free(in);
 
-    const inbuff = try stdin.readAllStdin(allocator);
-    defer allocator.free(inbuff);
-
-    const lines = try stdin.splitLines(allocator, inbuff);
-    defer allocator.free(lines);
+    const lines = try stdin.splitLines(alloc, in);
+    defer alloc.free(lines);
 
     for (lines, 0..) |line, i| {
         print("{d}: {s}\n", .{ i, line });
