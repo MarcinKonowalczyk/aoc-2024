@@ -64,10 +64,7 @@ pub fn build(b: *std.Build) !void {
     var dir = try std.fs.openDirAbsolute(src_dir, .{ .iterate = true });
     defer dir.close();
 
-    var walker = dir.walk(b.allocator) catch |err| {
-        print("Error walking directory: {s}\n", .{@errorName(err)});
-        return;
-    };
+    var walker = try dir.walk(b.allocator);
     defer walker.deinit();
 
     var part_paths = std.ArrayList([]const u8).init(b.allocator);
@@ -77,10 +74,7 @@ pub fn build(b: *std.Build) !void {
     defer test_paths.deinit();
 
     while (true) {
-        const maybe_entry = walker.next() catch |err| {
-            print("Error walking directory: {s}\n", .{@errorName(err)});
-            return;
-        };
+        const maybe_entry = try walker.next();
         if (maybe_entry) |entry| {
             if (entry.kind == .file) {
                 {
@@ -141,19 +135,13 @@ pub fn build(b: *std.Build) !void {
             return;
         };
 
-        const exe_name = std.fmt.allocPrint(
+        const exe_name = try std.fmt.allocPrint(
             b.allocator,
             "day{d:0>2}_{d}",
             .{ dp.@"0", dp.@"1" },
-        ) catch |err| {
-            print("Error formatting exe name: {s}\n", .{@errorName(err)});
-            return;
-        };
+        );
 
-        const root_source_file = b.allocator.alloc(u8, 4 + path.len) catch |err| {
-            print("Error allocating root source file: {s}\n", .{@errorName(err)});
-            return;
-        };
+        const root_source_file = try b.allocator.alloc(u8, 4 + path.len);
         memcopy(u8, root_source_file, "src/");
         memcopy(u8, root_source_file[4..], path);
 
@@ -172,10 +160,7 @@ pub fn build(b: *std.Build) !void {
         //     .optimize = optimize,
         // });
 
-        execs.append(exe) catch |err| {
-            print("Error appending exec: {s}\n", .{@errorName(err)});
-            return;
-        };
+        try execs.append(exe);
 
         // tests.append(exe_unit_tests) catch |err| {
         //     print("Error appending test: {s}\n", .{@errorName(err)});
