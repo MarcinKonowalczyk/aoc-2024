@@ -6,5 +6,5 @@ pub fn get_answer() u8 {
 }
 
 test "test greeting" {
-    testing.expect(get_answer() == 49);
+    try testing.expect(get_answer() == 49);
 }
