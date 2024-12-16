@@ -3,11 +3,13 @@ const Tuple = std.meta.Tuple;
 const print = std.debug.print;
 const memcopy = std.mem.copyForwards;
 
+/// Compare two strings for equality.
 fn strcmp(a: []const u8, b: []const u8) bool {
     if (a.len != b.len) return false;
     return std.mem.eql(u8, a, b);
 }
 
+/// Copy a string into a newly allocated buffer. The caller is responsible for freeing the memory.
 fn strcopy(alloc: std.mem.Allocator, s: []const u8) ![]u8 {
     const result = try alloc.alloc(u8, s.len);
     memcopy(u8, result, s);
@@ -39,28 +41,17 @@ fn relativePathToDayAndPart(path: []const u8) !Tuple(&.{ u8, u8 }) {
     return .{ day, part };
 }
 
-// Although this function looks imperative, note that its job is to
-// declaratively construct a build graph that will be executed by an external
-// runner.
 pub fn build(b: *std.Build) !void {
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
-
-    // Standard optimization options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
-    // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    // stdin module
     const stdin = b.addModule("stdin", .{
         .root_source_file = b.path("src/stdin.zig"),
     });
 
-    // List all the folders in the src directory
+    // Walk the src directory and find all the files
     const src_dir = b.pathFromRoot("src");
-    // print("src_dir: {s}\n", .{src_dir});
     var dir = try std.fs.openDirAbsolute(src_dir, .{ .iterate = true });
     defer dir.close();
 
@@ -78,49 +69,31 @@ pub fn build(b: *std.Build) !void {
         if (maybe_entry) |entry| {
             if (entry.kind == .file) {
                 {
-                    // const path = strcopy(b.allocator, entry.path) catch |err| {
-                    //     print("Error copying path: {s}\n", .{@errorName(err)});
-                    //     return;
-                    // };
                     if (strcmp(entry.basename, "tests.zig")) {
                         try test_paths.append(try strcopy(b.allocator, entry.path));
-                        // print("Found test file: {s}\n", .{entry.basename});
                     } else if (entry.basename.len >= 4 and strcmp(entry.basename[0..4], "part")) {
                         try part_paths.append(try strcopy(b.allocator, entry.path));
-                        // print("Found file: {s}\n", .{entry.basename});
                     }
                 }
             }
         } else {
+            // Done walking
             break;
         }
-
-        // const path = b.allocator.alloc(u8, maybe_entry.?.path.len) catch |err| {
-        //     print("Error allocating path: {s}\n", .{@errorName(err)});
-        //     return;
-        // };
-        // memcopy(u8, path, maybe_entry.?.path);
-
-        // part_paths.append(path) catch |err| {
-        // print("Error appending entry: {s}\n", .{@errorName(err)});
-        // return;
-        // };
-
-        // print("Found file: {s}\n", .{maybe_entry.?.basename});
     }
 
-    print("Found {d} test files\n", .{test_paths.items.len});
-    for (test_paths.items) |path| {
-        print("Found test file: {s}\n", .{path});
-    }
+    // print("Found {d} test files\n", .{test_paths.items.len});
+    // for (test_paths.items) |path| {
+    //     print("Found test file: {s}\n", .{path});
+    // }
 
-    print("Found {d} files\n", .{part_paths.items.len});
-    for (part_paths.items) |path| {
-        print("Found file: {s}\n", .{path});
-    }
+    // print("Found {d} files\n", .{part_paths.items.len});
+    // for (part_paths.items) |path| {
+    //     print("Found file: {s}\n", .{path});
+    // }
 
     // Add all the executables
-    var execs = std.ArrayList(*std.Build.Step.Compile).init(b.allocator);
+    var execs = std.StringHashMap(*std.Build.Step.Compile).init(b.allocator);
     defer execs.deinit();
 
     // var tests = std.ArrayList(*std.Build.Step.Test).init(b.allocator);
@@ -160,7 +133,8 @@ pub fn build(b: *std.Build) !void {
         //     .optimize = optimize,
         // });
 
-        try execs.append(exe);
+        // try execs.append(exe);
+        try execs.put(exe_name, exe);
 
         // tests.append(exe_unit_tests) catch |err| {
         //     print("Error appending test: {s}\n", .{@errorName(err)});
@@ -168,12 +142,15 @@ pub fn build(b: *std.Build) !void {
         // };
     }
 
-    for (execs.items) |exe| {
-        exe.root_module.addImport("stdin", stdin);
+    var it = execs.valueIterator();
+    while (it.next()) |exe| {
+        exe.*.root_module.addImport("stdin", stdin);
     }
+
     // Add all the execs to the install step
-    for (execs.items) |exe| {
-        b.installArtifact(exe);
+    it = execs.valueIterator();
+    while (it.next()) |exe| {
+        b.installArtifact(exe.*);
     }
 
     // const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
