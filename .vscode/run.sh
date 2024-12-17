@@ -100,17 +100,28 @@ if [ $EXTENSION = "zig" ]; then
         # echo $FULL_FILE_PATH
     elif [[ $FILENAME == stdin.zig ]]; then
             (
-            echo "Running build.zig"
+            echo "Testing stdin.zig"
             cd $ROOT_FOLDER
-            zig build
+            # zig build
+            # [ $? -ne 0 ] && exit 1
+            # cat ./src/stdin.zig | ./zig-out/bin/day01_1
+            zig test src/stdin.zig
             [ $? -ne 0 ] && exit 1
-            cat ./src/stdin.zig | ./zig-out/bin/day01_1
         )
     elif [[ $FILENAME == build.zig ]]; then
         (
             echo "Running build.zig"
             cd $ROOT_FOLDER
             zig build
+        )
+    elif [[ $FILENAME == utils.zig ]]; then
+        DAY=${RELATIVE_PATH_PARTS[$((DEPTH - 1))]}
+        DAY=${DAY:3}
+        (
+            echo "Testing src/day$DAY/utils.zig"
+            cd $ROOT_FOLDER
+            zig test src/day$DAY/utils.zig
+            [ $? -ne 0 ] && exit 1
         )
     else
         echo "Nothing to do for $FILENAME"
