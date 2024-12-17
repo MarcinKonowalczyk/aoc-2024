@@ -14,17 +14,12 @@ fi
 
 DAYXX="day$XX"
 
-[ -d $DAYXX ] && echo "Folder for day $XX already exists" && exit 1
+[ -d $"day/{DAYXX}" ] && echo "Folder for day $XX already exists" && exit 1
 
-mkdir $DAYXX
-cp day00/day00_1.zig $DAYXX/$DAYXX\_1.zig
-cp day00/day00_2.zig $DAYXX/$DAYXX\_2.zig
+mkdir src/$DAYXX
+cp -r src/day00/* src/$DAYXX
 
-# The first line of each of those files says 'package day00'
-# We need to change that to 'package dayXX'
-
-sed -i '' "s/day00/$DAYXX/g" $DAYXX/$DAYXX\_1.zig
-sed -i '' "s/day00/$DAYXX/g" $DAYXX/$DAYXX\_2.zig
+# Make dummy data
 
 touch data/full/$DAYXX.txt
 touch data/test/$DAYXX.txt
