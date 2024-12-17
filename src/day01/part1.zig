@@ -14,12 +14,12 @@ pub fn main() !void {
     const lines = try stdin.splitLines(alloc, in);
     defer alloc.free(lines);
 
-    for (lines, 0..) |line, i| {
-        print("{d}: {s}\n", .{ i, line });
+    for (lines) |line| {
+        const values = try utils.parse_line(line);
+        print("{}\n", .{values});
     }
 
-    const answer = utils.get_answer();
-
+    const answer = 99;
     const stdout = std.io.getStdOut().writer();
     try stdout.print("{d}", .{answer});
 }
