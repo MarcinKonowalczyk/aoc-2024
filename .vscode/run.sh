@@ -130,66 +130,13 @@ if [ $EXTENSION = "zig" ]; then
     exit 0
 fi
 
-# Do some other stuff here.
-
-if [ $EXTENSION = "zig" ]; then
+if [[ $FILENAME == run_all.sh ]]; then
     (
+        echo "Running run_all.sh"
         cd $ROOT_FOLDER
-        echo $ROOT_FOLDER
-        zig build
+        source ./run_all.sh
     )
     exit 0
-fi
-
-_EXAMPLE_MAKEFILE=false
-if [ "$_EXAMPLE_MAKEFILE" = true ]; then
-    # Run the makefile if you're currently editing the makefile
-    if [ "$FILENAME" = "makefile" ]; then
-        printf "About to run the makefile!\n"
-        make
-        exit 0
-    fi
-fi
-
-_EXAMPLE_PYTEST=false
-if [ "$_EXAMPLE_PYTEST" = true ]; then
-    # Run the test if you're currently editing a python test file
-    if [ $EXTENSION = "py" ] && [ ${RELATIVE_PATH_PARTS[0]} = "tests" ]; then
-        printf "Running tests for $FILENAME\n"
-        pytest -s -x -k ${FILENAME%.*}
-        exit 0
-    fi
-fi
-
-
-_EXAMPLE_CMAKE=false
-if [ "$_EXAMPLE_CMAKE" = true ]; then
-    
-    TARGET="goo" # cmake target
-    
-    if [ ! -d "$ROOT_FOLDER/build" ]; then
-        # If the build folder doesn't exist, create it and run cmake
-        (
-            mkdir "$ROOT_FOLDER/build"
-            cd "$ROOT_FOLDER/build"
-            cmake ..
-        )
-    fi
-
-    make --directory="$ROOT_FOLDER/build/"; OUT=$?;
-    if [ $OUT == 0 ]; then
-        printf "Running $TARGET\n";
-        "$ROOT_FOLDER/build/$TARGET"; OUT=$?;
-        if [ $OUT == 0 ]; then
-            printf "Success!\n";
-        else
-            printf "$TARGET failed with $OUT\n";
-        fi
-    else
-        printf "make failed with $OUT\n";
-        printf "maybe delete the content of the build folder, rerun cmake and try again?\n";
-    fi
-    exit $OUT
 fi
 
 ################################################################################
