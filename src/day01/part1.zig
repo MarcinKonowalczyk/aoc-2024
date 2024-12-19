@@ -13,65 +13,59 @@ pub fn main() !void {
 
     var it = std.mem.tokenizeAny(u8, in, " \n");
 
-    const id_utype = u16;
-    const id_type = @Type(.{
-        .Int = .{
-            .bits = @typeInfo(id_utype).Int.bits * 2,
-            .signedness = .signed,
-        },
-    });
+    const id_type = i32;
 
-    // print("id_utype: {}\n", .{id_utype});
     // print("id_type: {}\n", .{id_type});
+    // print("id_utype: {}\n", .{id_utype});
 
-    var ids = std.ArrayList(id_utype).init(alloc);
+    var ids = std.ArrayList(id_type).init(alloc);
     while (it.next()) |token| {
-        const value = try std.fmt.parseInt(id_utype, token, 10);
+        const value = try std.fmt.parseInt(id_type, token, 10);
         try ids.append(value);
     }
 
-    const id_max = std.math.maxInt(id_utype);
-    var smallest_rgt: id_utype = id_max;
-    var smallest_lft: id_utype = id_max;
-    var second_smallest_rgt: id_utype = id_max;
-    var second_smallest_lft: id_utype = id_max;
-    for (ids.items, 0..) |id, i| {
-        if (i % 2 == 0) { // evens
-            if (id < smallest_lft) {
-                second_smallest_lft = smallest_lft;
-                smallest_lft = id;
-            } else if (id < second_smallest_lft) {
-                second_smallest_lft = id;
-            }
-        } else { // odds
-            if (id < smallest_rgt) {
-                second_smallest_rgt = smallest_rgt;
-                smallest_rgt = id;
-            } else if (id < second_smallest_rgt) {
-                second_smallest_rgt = id;
-            }
+    // print("ids: {any}\n", .{ids.items});
+
+    const Context = struct {
+        items: []id_type,
+        i: u1,
+
+        pub fn lessThan(ctx: @This(), a: usize, b: usize) bool {
+            return ctx.items[2 * a + ctx.i] < ctx.items[2 * b + ctx.i];
         }
+
+        pub fn swap(ctx: @This(), a: usize, b: usize) void {
+            return std.mem.swap(id_type, &ctx.items[2 * a + ctx.i], &ctx.items[2 * b + ctx.i]);
+        }
+
+        pub fn len(ctx: @This()) usize {
+            return ctx.items.len / 2;
+        }
+    };
+
+    // Sort i and odds in-place
+    var ctx = Context{ .items = ids.items, .i = 0 };
+    std.sort.insertionContext(0, ctx.len(), ctx);
+    ctx.i = 1;
+    std.sort.insertionContext(0, ctx.len(), ctx);
+
+    // print("ids: {any}\n", .{ids.items});
+
+    var sum: @Type(.{ .Int = .{
+        .bits = @typeInfo(id_type).Int.bits,
+        .signedness = .unsigned,
+    } }) = 0;
+
+    var i: usize = 0;
+    while (i < ids.items.len) : (i += 2) {
+        const id1 = ids.items[i];
+        const id2 = ids.items[i + 1];
+        const diff = @abs(id1 - id2);
+        // print("abs({d} - {d}) = {d}\n", .{ id1, id2, diff });
+        sum += diff;
     }
 
-    const smallest_distance = @abs(@as(id_type, smallest_rgt) - @as(id_type, smallest_lft));
-    const second_smallest_distance = @abs(@as(id_type, second_smallest_rgt) - @as(id_type, second_smallest_lft));
-
-    print("smallest_distance: {}\n", .{smallest_distance});
-    print("second_smallest_distance: {}\n", .{second_smallest_distance});
-
-    //     .print(
-    //     "smallest_lft: {}, second_smallest_lft: {}, smallest_rgt: {}, second_smallest_rgt: {}\n",
-    //     .{ smallest_lft, second_smallest_lft, smallest_rgt, second_smallest_rgt },
-    // );
-    // const lines = try stdin.splitLines(alloc, in);
-    // defer alloc.free(lines);
-
-    // for (lines) |line| {
-    //     const values = try utils.parse_line(line);
-    //     print("{}\n", .{values});
-    // }
-
-    const answer = 99;
+    const answer = sum;
     const stdout = std.io.getStdOut().writer();
     try stdout.print("{d}", .{answer});
 }
