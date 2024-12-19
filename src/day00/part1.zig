@@ -11,10 +11,10 @@ pub fn main() !void {
     const in = try stdin.readAllStdin(alloc);
     defer alloc.free(in);
 
-    const lines = try stdin.splitLines(alloc, in);
-    defer alloc.free(lines);
+    var lines_it = stdin.splitLines(in);
+    var i: usize = 0;
 
-    for (lines, 0..) |line, i| {
+    while (lines_it.next()) |line| : (i += 1) {
         print("{d}: {s}\n", .{ i, line });
     }
 

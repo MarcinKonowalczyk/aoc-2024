@@ -1,4 +1,5 @@
 const std = @import("std");
+const testing = std.testing;
 // const print = std.debug.print;
 
 const MAX_IDLE: comptime_int = 10; // Max number of idle loops before deciding we have no more input
@@ -32,27 +33,32 @@ pub fn readAllStdin(allocator: std.mem.Allocator) ![]u8 {
 }
 
 /// Copy a string into a newly allocated buffer. The caller is responsible for freeing the memory.
-fn strcopy(alloc: std.mem.Allocator, s: []const u8) ![]u8 {
-    const result = try alloc.alloc(u8, s.len);
-    std.mem.copyForwards(u8, result, s);
-    return result;
-}
+// fn strcopy(alloc: std.mem.Allocator, s: []const u8) ![]u8 {
+//     const result = try alloc.alloc(u8, s.len);
+//     std.mem.copyForwards(u8, result, s);
+//     return result;
+// }
 
-/// Split the input into lines, strip the newline character, and return a list of lines.
-pub fn splitLines(allocator: std.mem.Allocator, input: []u8) ![][]u8 {
-    var lines = std.ArrayList([]u8).init(allocator);
-    defer lines.deinit();
+// /// Split the input into lines, strip the newline character, and return a list of lines.
+// pub fn splitLinesCopy(allocator: std.mem.Allocator, input: []u8) ![][]u8 {
+//     var lines = std.ArrayList([]u8).init(allocator);
+//     defer lines.deinit();
 
-    var start: usize = 0;
-    for (input, 0..) |c, i| {
-        if (c == '\n') {
-            const line = input[start..i];
-            try lines.append(try strcopy(allocator, line));
-            start = i + 1;
-        }
-    }
+//     var start: usize = 0;
+//     for (input, 0..) |c, i| {
+//         if (c == '\n') {
+//             const line = input[start..i];
+//             try lines.append(try strcopy(allocator, line));
+//             start = i + 1;
+//         }
+//     }
 
-    return try lines.toOwnedSlice();
+//     return try lines.toOwnedSlice();
+// }
+
+///
+pub fn splitLines(input: []const u8) std.mem.TokenIterator(u8, .scalar) {
+    return std.mem.tokenizeScalar(u8, input, '\n');
 }
 
 // lines for testing
@@ -60,3 +66,17 @@ const _: []u8 = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do e
     "ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat duis aute irure" ++
     "dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat cupidatat" ++
     "non proident sunt in culpa qui officia deserunt mollit anim id est laborum";
+
+test "split_lines" {
+    const input = "lorem ipsum\ndolor sit amet\nconsectetur";
+    const expected = [_][]const u8{
+        "lorem ipsum",
+        "dolor sit amet",
+        "consectetur",
+    };
+    var it = splitLines(input);
+    var i: usize = 0;
+    while (it.next()) |line| : (i += 1) {
+        try testing.expect(std.mem.eql(u8, line, expected[i]));
+    }
+}
