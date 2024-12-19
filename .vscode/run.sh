@@ -94,6 +94,7 @@ if [ $EXTENSION = "zig" ]; then
             zig build test --summary all
             [ $? -ne 0 ] && exit 1
             cat $TEST_FILE_PATH | ./zig-out/bin/day${DAY}_${PART} | tee >(pbcopy)
+            # cat $FULL_FILE_PATH | ./zig-out/bin/day${DAY}_${PART} | tee >(pbcopy)
             # ./zig-out/bin/day${DAY}_${PART}
         )
         # echo $TEST_FILE_PATH
