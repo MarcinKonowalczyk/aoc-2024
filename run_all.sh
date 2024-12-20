@@ -1,5 +1,7 @@
 set -e
 
+zig build
+
 BIN_FOLDER=./zig-out/bin
 
 DAYS=()
@@ -28,3 +30,12 @@ done
         echo "${DAYS[$i]} ${PARTS[$i]} ${RESULTS[$i]}"
     done
 ) | column -t | tee results.txt
+
+# Find the last non-zero result, print it and send it to pbcopy
+for ((i = ${#RESULTS[@]} - 1; i >= 0; i--)); do
+    if [ ${RESULTS[$i]} -ne 0 ]; then
+        echo "Last non-zero result is ${DAYS[$i]} ${PARTS[$i]} ${RESULTS[$i]}"
+        printf "${RESULTS[$i]}" | pbcopy
+        break
+    fi
+done
