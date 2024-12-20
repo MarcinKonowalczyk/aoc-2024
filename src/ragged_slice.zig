@@ -18,8 +18,8 @@ pub fn RaggedSlice(comptime T: type) type {
         /// Widths of each row
         buffer_widths: []usize,
 
-        elements: usize,
-        rows: usize,
+        N_elements: usize,
+        N_rows: usize,
 
         elements_capacity: usize,
         rows_capacity: usize,
@@ -31,25 +31,25 @@ pub fn RaggedSlice(comptime T: type) type {
                 .buffer_items = try allocator.alloc(T, 0),
                 .buffer_widths = try allocator.alloc(usize, 0),
                 .allocator = allocator,
-                .elements = 0,
-                .rows = 0,
+                .N_elements = 0,
+                .N_rows = 0,
                 .elements_capacity = 0,
                 .rows_capacity = 0,
             };
         }
 
         pub fn items(self: Self) []const T {
-            return self.buffer_items[0..self.elements];
+            return self.buffer_items[0..self.N_elements];
         }
 
         pub fn widths(self: Self) []const usize {
-            return self.buffer_widths[0..self.rows];
+            return self.buffer_widths[0..self.N_rows];
         }
 
         pub fn appendRow(self: *Self, row: []const T) !void {
             const M = row.len;
 
-            const element_capacity = self.elements_capacity - self.elements;
+            const element_capacity = self.elements_capacity - self.N_elements;
             if (element_capacity < M) {
                 // Expand the items array
                 const new_size: usize = switch (self.elements_capacity) {
@@ -61,7 +61,7 @@ pub fn RaggedSlice(comptime T: type) type {
                 self.elements_capacity = new_size;
             }
 
-            const width_capacity = self.rows_capacity - self.rows;
+            const width_capacity = self.rows_capacity - self.N_rows;
             if (width_capacity < 1) {
                 // Expand the widths array
                 const new_size: usize = switch (self.rows_capacity) {
@@ -73,17 +73,17 @@ pub fn RaggedSlice(comptime T: type) type {
                 self.rows_capacity = new_size;
             }
 
-            @memcpy(self.buffer_items[self.elements..(self.elements + M)], row);
+            @memcpy(self.buffer_items[self.N_elements..(self.N_elements + M)], row);
 
-            self.buffer_widths[self.rows] = M;
-            self.elements += M;
-            self.rows += 1;
+            self.buffer_widths[self.N_rows] = M;
+            self.N_elements += M;
+            self.N_rows += 1;
         }
 
         /// Computes the linear index of an element
         pub fn linearIndex(self: Self, index: [2]usize) !usize {
             if (runtime_safety) {
-                if (index[0] >= self.rows) return RaggedSliceErrors.IndexOutOfBounds;
+                if (index[0] >= self.N_rows) return RaggedSliceErrors.IndexOutOfBounds;
                 if (index[1] >= self.buffer_widths[index[0]]) return RaggedSliceErrors.IndexOutOfBounds;
             }
 
@@ -100,31 +100,51 @@ pub fn RaggedSlice(comptime T: type) type {
             return self.buffer_items[try self.linearIndex(index)];
         }
 
+        // Computes the ragged index of an element
+        pub fn raggedIndex(self: Self, linear_index: usize) ![2]usize {
+            if (runtime_safety) {
+                if (linear_index >= self.N_elements) return RaggedSliceErrors.IndexOutOfBounds;
+            }
+
+            var row: usize = 0;
+            var _linear_index: usize = linear_index;
+            while (row < self.N_rows) {
+                if (_linear_index < self.buffer_widths[row]) {
+                    return .{ row, _linear_index };
+                }
+                _linear_index -= self.buffer_widths[row];
+                row += 1;
+            }
+
+            return RaggedSliceErrors.IndexOutOfBounds;
+        }
+
         pub fn deinit(self: Self) void {
             self.allocator.free(self.buffer_items);
             self.allocator.free(self.buffer_widths);
         }
 
-        pub const Entry = struct {
+        // Item iterator with indices
+        pub const Item = struct {
             value_ptr: *const T,
             row: usize = 0,
             column: usize = 0,
         };
 
-        pub const Iterator = struct {
+        pub const ItemIterator = struct {
             rs: *const Self,
             index: usize = 0,
             row: usize = 0,
             column: usize = 0,
 
-            pub fn next(it: *Iterator) ?Entry {
-                std.debug.assert(it.index <= it.rs.elements);
-                if (it.rs.elements == 0) return null; // no elements
-                if (it.index == it.rs.elements) return null; // end of iteration
+            pub fn next(it: *ItemIterator) ?Item {
+                std.debug.assert(it.index <= it.rs.N_elements);
+                if (it.rs.N_elements == 0) return null; // no elements
+                if (it.index == it.rs.N_elements) return null; // end of iteration
 
-                print("index: {d}, row: {d}, column: {d}\n", .{ it.index, it.row, it.column });
+                // print("index: {d}, row: {d}, column: {d}\n", .{ it.index, it.row, it.column });
                 const value = &it.rs.items()[it.index];
-                const entry = Entry{
+                const entry = Item{
                     .value_ptr = value,
                     .row = it.row,
                     .column = it.column,
@@ -133,7 +153,7 @@ pub fn RaggedSlice(comptime T: type) type {
                 it.index += 1;
                 it.column += 1;
                 // NOTE: while to skip empty rows
-                while (it.row < it.rs.rows and it.column == it.rs.widths()[it.row]) {
+                while (it.row < it.rs.N_rows and it.column == it.rs.widths()[it.row]) {
                     it.row += 1;
                     it.column = 0;
                 }
@@ -141,10 +161,31 @@ pub fn RaggedSlice(comptime T: type) type {
             }
         };
 
-        pub fn iterator(self: *const Self) Iterator {
-            return .{
-                .rs = self,
-            };
+        pub fn iterItems(self: *const Self) ItemIterator {
+            return .{ .rs = self };
+        }
+
+        pub const RowIterator = struct {
+            rs: *const Self,
+            index: usize = 0,
+            row: usize = 0,
+
+            pub fn next(it: *RowIterator) ?[]const T {
+                if (it.rs.N_rows == 0) return null; // no rows
+                if (it.row == it.rs.N_rows) return null; // end of iteration
+
+                const width = it.rs.widths()[it.row];
+                const row = it.rs.buffer_items[it.index..(it.index + width)];
+
+                it.index += width;
+                it.row += 1;
+
+                return row;
+            }
+        };
+
+        pub fn iterRows(self: *const Self) RowIterator {
+            return .{ .rs = self };
         }
     };
 }
@@ -165,8 +206,8 @@ test RaggedSlice {
     // print("{any}\n", .{rs.buffer_widths});
 
     // Check the slice has the expected values
-    try testing.expect(rs.elements == 9);
-    try testing.expect(rs.rows == 4);
+    try testing.expect(rs.N_elements == 9);
+    try testing.expect(rs.N_rows == 4);
     const expected_items = &.{ 1, 2, 3, 99, 99, 4, 5, 6, 7 };
     const expected_widths = &.{ 3, 2, 0, 4 };
     try testing.expect(mem.eql(u8, rs.items(), expected_items));
@@ -192,7 +233,28 @@ test RaggedSlice {
 
     try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.at(.{ 4, 0 }));
 
-    var it = rs.iterator();
+    // Test linear index
+    try testing.expect(try rs.linearIndex(.{ 0, 0 }) == 0);
+    try testing.expect(try rs.linearIndex(.{ 0, 1 }) == 1);
+    try testing.expect(try rs.linearIndex(.{ 0, 2 }) == 2);
+    try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.linearIndex(.{ 0, 3 }));
+    // etc ...
+
+    // Test ragged index
+    try testing.expect(mem.eql(usize, &try rs.raggedIndex(0), &.{ 0, 0 }));
+    try testing.expect(mem.eql(usize, &try rs.raggedIndex(1), &.{ 0, 1 }));
+    try testing.expect(mem.eql(usize, &try rs.raggedIndex(2), &.{ 0, 2 }));
+    try testing.expect(mem.eql(usize, &try rs.raggedIndex(3), &.{ 1, 0 }));
+    try testing.expect(mem.eql(usize, &try rs.raggedIndex(4), &.{ 1, 1 }));
+    // Empty row
+    try testing.expect(mem.eql(usize, &try rs.raggedIndex(5), &.{ 3, 0 }));
+    try testing.expect(mem.eql(usize, &try rs.raggedIndex(6), &.{ 3, 1 }));
+    try testing.expect(mem.eql(usize, &try rs.raggedIndex(7), &.{ 3, 2 }));
+    try testing.expect(mem.eql(usize, &try rs.raggedIndex(8), &.{ 3, 3 }));
+    try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.raggedIndex(9));
+
+    // Test iterators
+    var it = rs.iterItems();
 
     var collected_values: [9]u8 = .{255} ** 9;
     var collected_rows: [9]usize = .{255} ** 9;
@@ -214,4 +276,29 @@ test RaggedSlice {
 
     try testing.expect(mem.eql(usize, &collected_rows, expected_rows));
     try testing.expect(mem.eql(usize, &collected_columns, expected_columns));
+
+    var rit = rs.iterRows();
+
+    var row = rit.next();
+    try testing.expect(row != null);
+    try testing.expect(row.?.len == 3);
+    try testing.expect(std.mem.eql(u8, row.?, &.{ 1, 2, 3 }));
+
+    row = rit.next();
+    try testing.expect(row != null);
+    try testing.expect(row.?.len == 2);
+    try testing.expect(std.mem.eql(u8, row.?, &.{ 99, 99 }));
+
+    row = rit.next();
+    try testing.expect(row != null);
+    try testing.expect(row.?.len == 0);
+    try testing.expect(std.mem.eql(u8, row.?, &.{}));
+
+    row = rit.next();
+    try testing.expect(row != null);
+    try testing.expect(row.?.len == 4);
+    try testing.expect(std.mem.eql(u8, row.?, &.{ 4, 5, 6, 7 }));
+
+    row = rit.next();
+    try testing.expect(row == null);
 }
