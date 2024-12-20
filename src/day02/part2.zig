@@ -1,9 +1,11 @@
 const std = @import("std");
-const testing = std.testing;
+// const testing = std.testing;
 const print = std.debug.print;
-const stdin = @import("stdin");
 
-// const utils = @import("utils.zig");
+const utils = @import("utils.zig");
+
+const stdin = @import("stdin");
+const ragged_slice = @import("ragged_slice");
 
 pub fn main() !void {
     const alloc = std.heap.page_allocator;
@@ -11,23 +13,20 @@ pub fn main() !void {
     const in = try stdin.readAllStdin(alloc);
     defer alloc.free(in);
 
-    var lines_it = stdin.splitLines(in);
-    var i: usize = 0;
+    const reactors = try utils.parseReactors(alloc, in);
+    defer reactors.deinit();
 
-    while (lines_it.next()) |line| : (i += 1) {
-        print("{d}: {s}\n", .{ i, line });
+    var n_safe: usize = 0;
+    var rit = reactors.iterRows();
+    while (rit.next()) |reactor| {
+        const rt = utils.determineReactorType(reactor);
+        if (rt == utils.reactor_type.Safe) {
+            n_safe += 1;
+        }
     }
 
-    const answer = get_answer();
+    const answer = n_safe;
 
     const stdout = std.io.getStdOut().writer();
     try stdout.print("{d}", .{answer});
-}
-
-fn get_answer() u8 {
-    return 255;
-}
-
-test "test getting answer" {
-    try testing.expect(get_answer() == 255);
 }
