@@ -4,131 +4,214 @@ const runtime_safety = std.debug.runtime_safety;
 const mem = std.mem;
 const testing = std.testing;
 
-const Ragged2DSliceErrors = error{
-    IndexOutOfBounds,
-};
+const Ragged2DSliceErrors = error{IndexOutOfBounds};
 
-///
+/// A slice of ragged rows. All the rows are contiguous in memory and can be deallocated all at once.
+/// The widths of each of the rows can be different.
 pub fn Ragged2DSlice(comptime T: type) type {
     return struct {
         const Self = @This();
 
         /// Underlying memory used to store the individual items
-        items: []T,
+        buffer_items: []T,
 
         /// Widths of each row
-        widths: []usize,
+        buffer_widths: []usize,
 
-        /// Total number of elements in the slice
-        N: usize,
+        elements: usize,
+        rows: usize,
 
-        /// How many T values this list can hold without allocating additional memory
+        elements_capacity: usize,
+        rows_capacity: usize,
+
         allocator: mem.Allocator,
 
         pub fn init(allocator: mem.Allocator) !Self {
             return Self{
-                .items = try allocator.alloc(T, 0),
-                .widths = try allocator.alloc(usize, 0),
+                .buffer_items = try allocator.alloc(T, 0),
+                .buffer_widths = try allocator.alloc(usize, 0),
                 .allocator = allocator,
-                .N = 0,
+                .elements = 0,
+                .rows = 0,
+                .elements_capacity = 0,
+                .rows_capacity = 0,
             };
         }
 
-        /// Computes the linear index of an element
-        pub fn at(self: Self, index: [2]usize) !usize {
-            if (runtime_safety) {
-                if (index[0] >= self.N) return Ragged2DSliceErrors.IndexOutOfBounds;
-                if (index[1] >= self.widths[index[0]]) return Ragged2DSliceErrors.IndexOutOfBounds;
-            }
+        pub fn items(self: Self) []const T {
+            return self.buffer_items[0..self.elements];
+        }
 
-            var linear_index: usize = 0;
-            for (0..index[0]) |i| {
-                print("i: {d}\n", .{i});
-                linear_index += self.widths[i];
-            }
-            linear_index += index[1];
-
-            return self.items[linear_index];
+        pub fn widths(self: Self) []const usize {
+            return self.buffer_widths[0..self.rows];
         }
 
         pub fn appendRow(self: *Self, row: []const T) !void {
             const M = row.len;
-            if (M == 0) return;
 
-            print("self.items.len: {d}\n", .{self.items.len});
-            try self.maybeReallocItems(M);
-            print("self.items.len: {d}\n", .{self.items.len});
-
-            // print("self.widths.len: {d}\n", .{self.widths.len});
-            try self.maybeReallocWidths();
-            // print("self.widths.len: {d}\n", .{self.widths.len});
-
-            mem.copyForwards(T, self.items[self.N..], row);
-            self.widths[self.N] = M;
-            self.N += M;
-        }
-
-        fn maybeReallocItems(self: *Self, new_item_size: usize) !void {
-            const space_left = self.items.len - self.items.len;
-            if (space_left < new_item_size) {
-                const new_size: usize = switch (self.items.len) {
-                    0 => @max(16, new_item_size),
-                    else => @max(self.items.len + new_item_size, self.items.len * 2),
+            const element_capacity = self.elements_capacity - self.elements;
+            if (element_capacity < M) {
+                // Expand the items array
+                const new_size: usize = switch (self.elements_capacity) {
+                    0 => @max(1, M),
+                    else => @max(self.elements_capacity + M, self.elements_capacity * 2),
                 };
-                const new_items = try self.allocator.realloc(self.items, new_size);
-                self.items = new_items;
+                const new_items = try self.allocator.realloc(self.buffer_items, new_size);
+                self.buffer_items = new_items;
+                self.elements_capacity = new_size;
             }
-        }
 
-        fn maybeReallocWidths(self: *Self) !void {
-            const space_left = self.widths.len - self.widths.len;
-            if (space_left < 1) {
-                // const new_size = if (self.widths.len == 0) {
-                //     1;
-                // } else {
-                //     self.widths.len * 2;
-                // };
-                const new_size: usize = switch (self.widths.len) {
+            const width_capacity = self.rows_capacity - self.rows;
+            if (width_capacity < 1) {
+                // Expand the widths array
+                const new_size: usize = switch (self.rows_capacity) {
                     0 => 1,
-                    else => self.widths.len * 2,
+                    else => self.rows_capacity * 2,
                 };
-                self.widths = try self.allocator.realloc(self.widths, new_size);
+                const new_widths = try self.allocator.realloc(self.buffer_widths, new_size);
+                self.buffer_widths = new_widths;
+                self.rows_capacity = new_size;
             }
+
+            @memcpy(self.buffer_items[self.elements..(self.elements + M)], row);
+
+            self.buffer_widths[self.rows] = M;
+            self.elements += M;
+            self.rows += 1;
+        }
+
+        /// Computes the linear index of an element
+        pub fn linearIndex(self: Self, index: [2]usize) !usize {
+            if (runtime_safety) {
+                if (index[0] >= self.rows) return Ragged2DSliceErrors.IndexOutOfBounds;
+                if (index[1] >= self.buffer_widths[index[0]]) return Ragged2DSliceErrors.IndexOutOfBounds;
+            }
+
+            var linear_index: usize = 0;
+            for (0..index[0]) |i| {
+                linear_index += self.buffer_widths[i];
+            }
+            linear_index += index[1];
+
+            return linear_index;
+        }
+
+        pub fn at(self: Self, index: [2]usize) !T {
+            return self.buffer_items[try self.linearIndex(index)];
         }
 
         pub fn deinit(self: Self) void {
-            self.allocator.free(self.items);
-            self.allocator.free(self.widths);
+            self.allocator.free(self.buffer_items);
+            self.allocator.free(self.buffer_widths);
+        }
+
+        pub const Entry = struct {
+            value_ptr: *const T,
+            row: usize = 0,
+            column: usize = 0,
+        };
+
+        pub const Iterator = struct {
+            rs: *const Self,
+            index: usize = 0,
+            row: usize = 0,
+            column: usize = 0,
+
+            pub fn next(it: *Iterator) ?Entry {
+                std.debug.assert(it.index <= it.rs.elements);
+                if (it.rs.elements == 0) return null; // no elements
+                if (it.index == it.rs.elements) return null; // end of iteration
+
+                print("index: {d}, row: {d}, column: {d}\n", .{ it.index, it.row, it.column });
+                const value = &it.rs.items()[it.index];
+                const entry = Entry{
+                    .value_ptr = value,
+                    .row = it.row,
+                    .column = it.column,
+                };
+
+                it.index += 1;
+                it.column += 1;
+                // NOTE: while to skip empty rows
+                while (it.row < it.rs.rows and it.column == it.rs.widths()[it.row]) {
+                    it.row += 1;
+                    it.column = 0;
+                }
+                return entry;
+            }
+        };
+
+        pub fn iterator(self: *const Self) Iterator {
+            return .{
+                .rs = self,
+            };
         }
     };
 }
 
-test "Simple Slice" {
+test Ragged2DSlice {
     const allocator = testing.allocator;
-    // defer allocator.deinit();
-    // This creates a 2D slice type we can use to represent images, its a MxN slice of triplets of RGB values
-    var my_slice = try Ragged2DSlice(u8).init(allocator);
-    defer my_slice.deinit();
 
-    try my_slice.appendRow(&.{ 1, 2, 3 });
-    try my_slice.appendRow(&.{ 4, 5 });
+    var rs = try Ragged2DSlice(u8).init(allocator);
+    defer rs.deinit();
 
-    try testing.expect(try my_slice.at(.{ 0, 0 }) == 1);
-    try testing.expect(try my_slice.at(.{ 0, 1 }) == 2);
-    try testing.expect(try my_slice.at(.{ 0, 2 }) == 3);
+    try rs.appendRow(&.{ 1, 2, 3 });
+    try rs.appendRow(&.{ 99, 99 });
+    try rs.appendRow(&.{}); // Empty row
+    try rs.appendRow(&.{ 4, 5, 6, 7 });
 
-    // // This is a buffer, we need to create a buffer to put the slice on
-    // // var image_buffer = [_][3]u8{.{ 0, 0, 0 }} ** 30; // 6x5 image (width X height)
+    // Print raw buffers
+    // print("{any}\n", .{rs.buffer_items});
+    // print("{any}\n", .{rs.buffer_widths});
 
-    // // // This slice is created over that buffer.
-    // // const image = try ImageSlice.init(.{ 5, 6 }, &image_buffer); // By convention height is the first dimension
+    // Check the slice has the expected values
+    try testing.expect(rs.elements == 9);
+    try testing.expect(rs.rows == 4);
+    const expected_items = &.{ 1, 2, 3, 99, 99, 4, 5, 6, 7 };
+    const expected_widths = &.{ 3, 2, 0, 4 };
+    try testing.expect(mem.eql(u8, rs.items(), expected_items));
+    try testing.expect(mem.eql(usize, rs.widths(), expected_widths));
 
-    // // You use .at() and .items() to access members.
-    // image.items[try image.at(.{ 0, 0 })] = .{ 1, 2, 3 };
-    // image.items[try image.at(.{ 1, 1 })] = .{ 50, 50, 50 };
-    // image.items[try image.at(.{ 4, 5 })] = .{ 128, 255, 0 };
-    // image.items[try image.at(.{ 2, 4 })] = .{ 100, 12, 30 };
+    try testing.expect(try rs.at(.{ 0, 0 }) == 1);
+    try testing.expect(try rs.at(.{ 0, 1 }) == 2);
+    try testing.expect(try rs.at(.{ 0, 2 }) == 3);
+    try testing.expectError(Ragged2DSliceErrors.IndexOutOfBounds, rs.at(.{ 0, 3 }));
 
-    // You can get each of the individual dimensions with .shape
-    // and for the total number of elements use .items.len
+    try testing.expect(try rs.at(.{ 1, 0 }) == 99);
+    try testing.expect(try rs.at(.{ 1, 1 }) == 99);
+    try testing.expectError(Ragged2DSliceErrors.IndexOutOfBounds, rs.at(.{ 1, 2 }));
+
+    // Empty row
+    try testing.expectError(Ragged2DSliceErrors.IndexOutOfBounds, rs.at(.{ 2, 0 }));
+
+    try testing.expect(try rs.at(.{ 3, 0 }) == 4);
+    try testing.expect(try rs.at(.{ 3, 1 }) == 5);
+    try testing.expect(try rs.at(.{ 3, 2 }) == 6);
+    try testing.expect(try rs.at(.{ 3, 3 }) == 7);
+    try testing.expectError(Ragged2DSliceErrors.IndexOutOfBounds, rs.at(.{ 3, 4 }));
+
+    try testing.expectError(Ragged2DSliceErrors.IndexOutOfBounds, rs.at(.{ 4, 0 }));
+
+    var it = rs.iterator();
+
+    var collected_values: [9]u8 = .{255} ** 9;
+    var collected_rows: [9]usize = .{255} ** 9;
+    var collected_columns: [9]usize = .{255} ** 9;
+
+    var i: usize = 0;
+    while (it.next()) |item| : (i += 1) {
+        collected_values[i] = item.value_ptr.*;
+        collected_rows[i] = item.row;
+        collected_columns[i] = item.column;
+    }
+
+    try testing.expect(i == 9);
+
+    try testing.expect(mem.eql(u8, &collected_values, expected_items));
+
+    const expected_rows = &.{ 0, 0, 0, 1, 1, 3, 3, 3, 3 };
+    const expected_columns = &.{ 0, 1, 2, 0, 1, 0, 1, 2, 3 };
+
+    try testing.expect(mem.eql(usize, &collected_rows, expected_rows));
+    try testing.expect(mem.eql(usize, &collected_columns, expected_columns));
 }
