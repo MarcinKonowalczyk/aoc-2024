@@ -25,7 +25,7 @@ pub fn main() !void {
 }
 
 fn get_answer() u8 {
-    return 255;
+    return 0;
 }
 
 test "test getting answer" {

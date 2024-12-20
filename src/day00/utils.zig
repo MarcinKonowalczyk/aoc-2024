@@ -3,7 +3,7 @@ const print = std.debug.print;
 const testing = std.testing;
 
 pub fn get_answer() u8 {
-    return 49;
+    return 0;
 }
 
 test "test getting answer" {
