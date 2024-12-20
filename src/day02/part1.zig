@@ -17,8 +17,8 @@ pub fn main() !void {
     defer reactors.deinit();
 
     var n_safe: usize = 0;
-    var rit = reactors.iterRows();
-    while (rit.next()) |reactor| {
+    var it = reactors.iterRows();
+    while (it.next()) |reactor| {
         const rt = utils.determineReactorType(reactor);
         if (rt == utils.reactor_type.Safe) {
             n_safe += 1;
