@@ -4,11 +4,11 @@ const runtime_safety = std.debug.runtime_safety;
 const mem = std.mem;
 const testing = std.testing;
 
-const Ragged2DSliceErrors = error{IndexOutOfBounds};
+const RaggedSliceErrors = error{IndexOutOfBounds};
 
 /// A slice of ragged rows. All the rows are contiguous in memory and can be deallocated all at once.
 /// The widths of each of the rows can be different.
-pub fn Ragged2DSlice(comptime T: type) type {
+pub fn RaggedSlice(comptime T: type) type {
     return struct {
         const Self = @This();
 
@@ -83,8 +83,8 @@ pub fn Ragged2DSlice(comptime T: type) type {
         /// Computes the linear index of an element
         pub fn linearIndex(self: Self, index: [2]usize) !usize {
             if (runtime_safety) {
-                if (index[0] >= self.rows) return Ragged2DSliceErrors.IndexOutOfBounds;
-                if (index[1] >= self.buffer_widths[index[0]]) return Ragged2DSliceErrors.IndexOutOfBounds;
+                if (index[0] >= self.rows) return RaggedSliceErrors.IndexOutOfBounds;
+                if (index[1] >= self.buffer_widths[index[0]]) return RaggedSliceErrors.IndexOutOfBounds;
             }
 
             var linear_index: usize = 0;
@@ -149,10 +149,10 @@ pub fn Ragged2DSlice(comptime T: type) type {
     };
 }
 
-test Ragged2DSlice {
+test RaggedSlice {
     const allocator = testing.allocator;
 
-    var rs = try Ragged2DSlice(u8).init(allocator);
+    var rs = try RaggedSlice(u8).init(allocator);
     defer rs.deinit();
 
     try rs.appendRow(&.{ 1, 2, 3 });
@@ -175,22 +175,22 @@ test Ragged2DSlice {
     try testing.expect(try rs.at(.{ 0, 0 }) == 1);
     try testing.expect(try rs.at(.{ 0, 1 }) == 2);
     try testing.expect(try rs.at(.{ 0, 2 }) == 3);
-    try testing.expectError(Ragged2DSliceErrors.IndexOutOfBounds, rs.at(.{ 0, 3 }));
+    try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.at(.{ 0, 3 }));
 
     try testing.expect(try rs.at(.{ 1, 0 }) == 99);
     try testing.expect(try rs.at(.{ 1, 1 }) == 99);
-    try testing.expectError(Ragged2DSliceErrors.IndexOutOfBounds, rs.at(.{ 1, 2 }));
+    try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.at(.{ 1, 2 }));
 
     // Empty row
-    try testing.expectError(Ragged2DSliceErrors.IndexOutOfBounds, rs.at(.{ 2, 0 }));
+    try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.at(.{ 2, 0 }));
 
     try testing.expect(try rs.at(.{ 3, 0 }) == 4);
     try testing.expect(try rs.at(.{ 3, 1 }) == 5);
     try testing.expect(try rs.at(.{ 3, 2 }) == 6);
     try testing.expect(try rs.at(.{ 3, 3 }) == 7);
-    try testing.expectError(Ragged2DSliceErrors.IndexOutOfBounds, rs.at(.{ 3, 4 }));
+    try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.at(.{ 3, 4 }));
 
-    try testing.expectError(Ragged2DSliceErrors.IndexOutOfBounds, rs.at(.{ 4, 0 }));
+    try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.at(.{ 4, 0 }));
 
     var it = rs.iterator();
 
