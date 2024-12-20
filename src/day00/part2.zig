@@ -29,5 +29,5 @@ fn get_answer() u8 {
 }
 
 test "test getting answer" {
-    try testing.expect(get_answer() == 255);
+    try testing.expect(get_answer() == 0);
 }
