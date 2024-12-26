@@ -116,33 +116,15 @@ const Scanner = struct {
 
         switch (c) {
             '(' => {
-                try self.tokens.append(Token{
-                    .tag = TokenKind.Lbrace,
-                    .loc = .{
-                        .start = self.current,
-                        .end = self.current + 1,
-                    },
-                });
+                try self.appendToken(TokenKind.Lbrace, self.current, self.current + 1);
                 self.current += 1;
             },
             ')' => {
-                try self.tokens.append(Token{
-                    .tag = TokenKind.Rbrace,
-                    .loc = .{
-                        .start = self.current,
-                        .end = self.current + 1,
-                    },
-                });
+                try self.appendToken(TokenKind.Rbrace, self.current, self.current + 1);
                 self.current += 1;
             },
             ',' => {
-                try self.tokens.append(Token{
-                    .tag = TokenKind.Comma,
-                    .loc = .{
-                        .start = self.current,
-                        .end = self.current + 1,
-                    },
-                });
+                try self.appendToken(TokenKind.Comma, self.current, self.current + 1);
                 self.current += 1;
             },
             '0'...'9' => {
@@ -151,35 +133,17 @@ const Scanner = struct {
             },
             'm' => {
                 if (match(self, "mul")) {
-                    try self.tokens.append(Token{
-                        .tag = TokenKind.Mul,
-                        .loc = .{
-                            .start = self.current,
-                            .end = self.current + 3,
-                        },
-                    });
+                    try self.appendToken(TokenKind.Mul, self.current, self.current + 3);
                     self.current += 3;
                 } else {
                     // This is an 'm' but it does not match 'mul'
-                    try self.tokens.append(Token{
-                        .tag = TokenKind.Other,
-                        .loc = .{
-                            .start = self.current,
-                            .end = self.current + 1,
-                        },
-                    });
+                    try self.appendToken(TokenKind.Other, self.current, self.current + 1);
                     self.current += 1;
                 }
             },
             else => {
-                // some other character.
-                try self.tokens.append(Token{
-                    .tag = TokenKind.Other,
-                    .loc = .{
-                        .start = self.current,
-                        .end = self.current + 1,
-                    },
-                });
+                // some other character
+                try self.appendToken(TokenKind.Other, self.current, self.current + 1);
                 self.current += 1;
             },
         }
@@ -203,13 +167,7 @@ const Scanner = struct {
             i += 1;
         }
 
-        try self.tokens.append(Token{
-            .tag = TokenKind.Number,
-            .loc = .{
-                .start = self.current - i + 1,
-                .end = self.current + 1,
-            },
-        });
+        try self.appendToken(TokenKind.Number, self.current - i + 1, self.current + 1);
     }
 
     // Match the current token with the expected string. Do not advance the current pointer.
@@ -221,5 +179,20 @@ const Scanner = struct {
             return true;
         }
         return false;
+    }
+
+    fn appendToken(
+        self: *Self,
+        tag: TokenKind,
+        start: usize,
+        end: usize,
+    ) !void {
+        try self.tokens.append(Token{
+            .tag = tag,
+            .loc = .{
+                .start = start,
+                .end = end,
+            },
+        });
     }
 };
