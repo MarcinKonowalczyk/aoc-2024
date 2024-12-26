@@ -1,9 +1,10 @@
 const std = @import("std");
-const testing = std.testing;
+// const testing = std.testing;
 const print = std.debug.print;
+const assert = std.debug.assert;
 const stdin = @import("stdin");
 
-// const utils = @import("utils.zig");
+const utils = @import("utils.zig");
 
 pub fn main() !void {
     const alloc = std.heap.page_allocator;
@@ -11,23 +12,49 @@ pub fn main() !void {
     const in = try stdin.readAllStdin(alloc);
     defer alloc.free(in);
 
-    var lines_it = stdin.splitLines(in);
-    var i: usize = 0;
+    var scanner = utils.Scanner.init(in, alloc);
+    defer scanner.deinit();
 
-    while (lines_it.next()) |line| : (i += 1) {
-        print("{d}: {s}\n", .{ i, line });
+    try scanner.scanTokens();
+
+    var sum: u32 = 0;
+
+    var stack: [6]utils.Token = undefined;
+    const want: [6]utils.TokenKind = .{
+        utils.TokenKind.Mul,
+        utils.TokenKind.Lbrace,
+        utils.TokenKind.Number,
+        utils.TokenKind.Comma,
+        utils.TokenKind.Number,
+        utils.TokenKind.Rbrace,
+    };
+    var i: usize = 0;
+    for (scanner.tokens.items) |token| {
+        if (token.tag == want[i]) {
+            // push the token to the stack
+            stack[i] = token;
+            i += 1;
+        } else {
+            // clear the stack
+            i = 0;
+            stack[i] = token;
+        }
+
+        if (i == 6) {
+            // Evaluate the expression
+            print("Evaluating expression: {s}\n", .{in[stack[0].loc.start..stack[stack.len - 1].loc.end]});
+            const a = try std.fmt.parseInt(u32, in[stack[2].loc.start..stack[2].loc.end], 10);
+            const b = try std.fmt.parseInt(u32, in[stack[4].loc.start..stack[4].loc.end], 10);
+
+            const result = a * b;
+            // print("{d} = {d} * {d}\n", .{ result, a, b });
+            sum += result;
+
+            // Reset the stack
+            i = 0;
+        }
     }
 
-    const answer = get_answer();
-
     const stdout = std.io.getStdOut().writer();
-    try stdout.print("{d}", .{answer});
-}
-
-fn get_answer() u8 {
-    return 0;
-}
-
-test "test getting answer" {
-    try testing.expect(get_answer() == 0);
+    try stdout.print("{d}", .{sum});
 }
