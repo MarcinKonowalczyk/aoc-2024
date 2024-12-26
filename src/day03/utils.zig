@@ -87,9 +87,9 @@ pub const Scanner = struct {
                 }
             },
             'd' => {
-                if (match(self, "dont")) {
+                if (match(self, "don't")) {
                     try self.appendToken(TokenKind.Dont, self.current, self.current + 4);
-                    self.current += 4;
+                    self.current += 5;
                 } else if (match(self, "do")) {
                     try self.appendToken(TokenKind.Do, self.current, self.current + 2);
                     self.current += 2;

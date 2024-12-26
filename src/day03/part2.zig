@@ -45,8 +45,6 @@ pub fn main() !void {
 
     try scanner.scanTokens();
 
-    var sum: u32 = 0;
-
     var mul: Pattern(6) = .{ .want = .{
         utils.TokenKind.Mul,
         utils.TokenKind.Lbrace,
@@ -56,27 +54,74 @@ pub fn main() !void {
         utils.TokenKind.Rbrace,
     } };
 
+    var do: Pattern(3) = .{ .want = .{
+        utils.TokenKind.Do,
+        utils.TokenKind.Lbrace,
+        utils.TokenKind.Rbrace,
+    } };
+
+    var dont: Pattern(3) = .{ .want = .{
+        utils.TokenKind.Dont,
+        utils.TokenKind.Lbrace,
+        utils.TokenKind.Rbrace,
+    } };
+
+    var sum: u32 = 0;
+    var do_flag = true;
+
     for (scanner.tokens.items) |token| {
+        var match = false;
         if (token.tag == mul.current()) {
             mul.push(token);
-            // push the token to the stack
+            match = true;
         } else {
-            // clear the stack
             mul.reset();
+        }
+
+        if (!match) {
+            if (token.tag == do.current()) {
+                do.push(token);
+                match = true;
+            } else {
+                do.reset();
+            }
+        }
+
+        if (!match) {
+            if (token.tag == dont.current()) {
+                dont.push(token);
+                match = true;
+            } else {
+                dont.reset();
+            }
         }
 
         if (mul.atEnd()) {
             // Evaluate the expression
-            print("Evaluating expression: {s}\n", .{in[mul.stack[0].loc.start..mul.stack[mul.stack.len - 1].loc.end]});
-            const a = try std.fmt.parseInt(u32, in[mul.stack[2].loc.start..mul.stack[2].loc.end], 10);
-            const b = try std.fmt.parseInt(u32, in[mul.stack[4].loc.start..mul.stack[4].loc.end], 10);
+            if (do_flag) {
+                // print("Evaluating expression: {s}\n", .{in[mul.stack[0].loc.start..mul.stack[mul.stack.len - 1].loc.end]});
 
-            const result = a * b;
-            // print("{d} = {d} * {d}\n", .{ result, a, b });
-            sum += result;
+                const a = try std.fmt.parseInt(u32, in[mul.stack[2].loc.start..mul.stack[2].loc.end], 10);
+                const b = try std.fmt.parseInt(u32, in[mul.stack[4].loc.start..mul.stack[4].loc.end], 10);
+
+                const result = a * b;
+                sum += result;
+            }
 
             // Reset the stack
             mul.reset();
+        }
+
+        if (do.atEnd()) {
+            // print("Do\n", .{});
+            do_flag = true;
+            do.reset();
+        }
+
+        if (dont.atEnd()) {
+            // print("Dont\n", .{});
+            do_flag = false;
+            dont.reset();
         }
     }
 
