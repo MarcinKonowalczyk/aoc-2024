@@ -11,7 +11,7 @@ fn Pattern(comptime N: u8) type {
         const Self = @This();
 
         want: [N]utils.TokenKind,
-        stack: [N]utils.Token = undefined,
+        stack: [N]*utils.Token = undefined,
         i: usize = 0,
 
         pub fn reset(self: *Self) void {
@@ -19,7 +19,7 @@ fn Pattern(comptime N: u8) type {
             self.stack = undefined;
         }
 
-        pub fn push(self: *Self, token: utils.Token) void {
+        pub fn push(self: *Self, token: *utils.Token) void {
             self.stack[self.i] = token;
             self.i += 1;
         }
@@ -69,7 +69,9 @@ pub fn main() !void {
     var sum: u32 = 0;
     var do_flag = true;
 
-    for (scanner.tokens.items) |token| {
+    for (0..scanner.tokens.items.len) |i| {
+        const token = &scanner.tokens.items[i];
+
         var match = false;
         if (token.tag == mul.current()) {
             mul.push(token);
