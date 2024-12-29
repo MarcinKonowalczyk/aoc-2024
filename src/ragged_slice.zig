@@ -81,7 +81,7 @@ pub fn RaggedSlice(comptime T: type) type {
         }
 
         /// Computes the linear index of an element
-        pub fn linearIndex(self: Self, index: [2]usize) !usize {
+        pub fn lid(self: Self, index: [2]usize) !usize {
             if (runtime_safety) {
                 if (index[0] >= self.N_rows) return RaggedSliceErrors.IndexOutOfBounds;
                 if (index[1] >= self.buffer_widths[index[0]]) return RaggedSliceErrors.IndexOutOfBounds;
@@ -97,7 +97,7 @@ pub fn RaggedSlice(comptime T: type) type {
         }
 
         pub fn at(self: Self, index: [2]usize) !T {
-            return self.buffer_items[try self.linearIndex(index)];
+            return self.buffer_items[try self.lid(index)];
         }
 
         // Computes the ragged index of an element
@@ -234,10 +234,10 @@ test RaggedSlice {
     try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.at(.{ 4, 0 }));
 
     // Test linear index
-    try testing.expect(try rs.linearIndex(.{ 0, 0 }) == 0);
-    try testing.expect(try rs.linearIndex(.{ 0, 1 }) == 1);
-    try testing.expect(try rs.linearIndex(.{ 0, 2 }) == 2);
-    try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.linearIndex(.{ 0, 3 }));
+    try testing.expect(try rs.lid(.{ 0, 0 }) == 0);
+    try testing.expect(try rs.lid(.{ 0, 1 }) == 1);
+    try testing.expect(try rs.lid(.{ 0, 2 }) == 2);
+    try testing.expectError(RaggedSliceErrors.IndexOutOfBounds, rs.lid(.{ 0, 3 }));
     // etc ...
 
     // Test ragged index

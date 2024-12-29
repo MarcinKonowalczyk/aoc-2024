@@ -28,7 +28,7 @@ pub fn main() !void {
     // This slice is created over that buffer.
     const in_slice = try Slice.init(.{ N, N }, in); // By convention height is the first dimension
     print("in_slice: {any}\n", .{in_slice});
-    print("index: {any}\n", .{in_slice.linearIndex(.{ 1, 0 })});
+    print("index: {any}\n", .{in_slice.lid(.{ 1, 0 })});
 
     // var lines_it = stdin.splitLines(in);
     // var i: usize = 0;

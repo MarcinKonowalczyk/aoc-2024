@@ -52,7 +52,7 @@ pub fn NDSlice(comptime T: type, comptime N: comptime_int, comptime memory_order
         }
 
         /// Computes the linear index of an element
-        pub fn linearIndex(self: Self, index: [N]usize) !usize {
+        pub fn lid(self: Self, index: [N]usize) !usize {
             if (runtime_safety) {
                 for (index, 0..) |index_i, i| {
                     if (index_i >= self.shape[i]) return NDSliceErrors.IndexOutOfBounds;
@@ -97,10 +97,10 @@ test "Simple Slice" {
     // This slice is created over that buffer.
     const image = try ImageSlice.init(.{ 5, 6 }, &image_buffer); // By convention height is the first dimension
 
-    try testing.expect(mem.eql(u8, &image.items[try image.linearIndex(.{ 0, 0 })], &.{ 0, 0, 0 }));
-    image.items[try image.linearIndex(.{ 0, 0 })] = .{ 1, 2, 3 };
-    try testing.expect(mem.eql(u8, &image.items[try image.linearIndex(.{ 0, 0 })], &.{ 1, 2, 3 }));
-    image.items[try image.linearIndex(.{ 1, 1 })] = .{ 50, 50, 50 };
+    try testing.expect(mem.eql(u8, &image.items[try image.lid(.{ 0, 0 })], &.{ 0, 0, 0 }));
+    image.items[try image.lid(.{ 0, 0 })] = .{ 1, 2, 3 };
+    try testing.expect(mem.eql(u8, &image.items[try image.lid(.{ 0, 0 })], &.{ 1, 2, 3 }));
+    image.items[try image.lid(.{ 1, 1 })] = .{ 50, 50, 50 };
 
     // Check the shape
     try testing.expect(mem.eql(usize, &image.shape, &.{ 5, 6 }));
