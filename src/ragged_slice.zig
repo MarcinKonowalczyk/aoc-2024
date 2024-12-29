@@ -56,7 +56,8 @@ pub fn RaggedSlice(comptime T: type) type {
                     0 => @max(1, M),
                     else => @max(self.elements_capacity + M, self.elements_capacity * 2),
                 };
-                const new_items = try self.allocator.realloc(self.buffer_items, new_size);
+                const new_items =
+                    try self.allocator.realloc(self.buffer_items, new_size);
                 self.buffer_items = new_items;
                 self.elements_capacity = new_size;
             }
@@ -68,7 +69,8 @@ pub fn RaggedSlice(comptime T: type) type {
                     0 => 1,
                     else => self.rows_capacity * 2,
                 };
-                const new_widths = try self.allocator.realloc(self.buffer_widths, new_size);
+                const new_widths =
+                    try self.allocator.realloc(self.buffer_widths, new_size);
                 self.buffer_widths = new_widths;
                 self.rows_capacity = new_size;
             }
@@ -83,8 +85,10 @@ pub fn RaggedSlice(comptime T: type) type {
         /// Computes the linear index of an element
         pub fn lid(self: Self, index: [2]usize) !usize {
             if (runtime_safety) {
-                if (index[0] >= self.N_rows) return RaggedSliceErrors.IndexOutOfBounds;
-                if (index[1] >= self.buffer_widths[index[0]]) return RaggedSliceErrors.IndexOutOfBounds;
+                if (index[0] >= self.N_rows)
+                    return RaggedSliceErrors.IndexOutOfBounds;
+                if (index[1] >= self.buffer_widths[index[0]])
+                    return RaggedSliceErrors.IndexOutOfBounds;
             }
 
             var linear_index: usize = 0;
@@ -103,7 +107,8 @@ pub fn RaggedSlice(comptime T: type) type {
         // Computes the ragged index of an element
         pub fn raggedIndex(self: Self, linear_index: usize) ![2]usize {
             if (runtime_safety) {
-                if (linear_index >= self.N_elements) return RaggedSliceErrors.IndexOutOfBounds;
+                if (linear_index >= self.N_elements)
+                    return RaggedSliceErrors.IndexOutOfBounds;
             }
 
             var row: usize = 0;
