@@ -6,6 +6,7 @@
 const std = @import("std");
 const runtime_safety = std.debug.runtime_safety;
 const mem = std.mem;
+const testing = std.testing;
 
 const NDSliceErrors = error{
     InsufficientBufferSize,
@@ -51,7 +52,7 @@ pub fn NDSlice(comptime T: type, comptime N: comptime_int, comptime memory_order
         }
 
         /// Computes the linear index of an element
-        pub fn at(self: Self, index: [N]usize) !usize {
+        pub fn linearIndex(self: Self, index: [N]usize) !usize {
             if (runtime_safety) {
                 for (index, 0..) |index_i, i| {
                     if (index_i >= self.shape[i]) return NDSliceErrors.IndexOutOfBounds;
@@ -96,12 +97,14 @@ test "Simple Slice" {
     // This slice is created over that buffer.
     const image = try ImageSlice.init(.{ 5, 6 }, &image_buffer); // By convention height is the first dimension
 
-    // You use .at() and .items() to access members.
-    image.items[try image.at(.{ 0, 0 })] = .{ 1, 2, 3 };
-    image.items[try image.at(.{ 1, 1 })] = .{ 50, 50, 50 };
-    image.items[try image.at(.{ 4, 5 })] = .{ 128, 255, 0 };
-    image.items[try image.at(.{ 2, 4 })] = .{ 100, 12, 30 };
+    try testing.expect(mem.eql(u8, &image.items[try image.linearIndex(.{ 0, 0 })], &.{ 0, 0, 0 }));
+    image.items[try image.linearIndex(.{ 0, 0 })] = .{ 1, 2, 3 };
+    try testing.expect(mem.eql(u8, &image.items[try image.linearIndex(.{ 0, 0 })], &.{ 1, 2, 3 }));
+    image.items[try image.linearIndex(.{ 1, 1 })] = .{ 50, 50, 50 };
 
-    // You can get each of the individual dimensions with .shape
-    // and for the total number of elements use .items.len
+    // Check the shape
+    try testing.expect(mem.eql(usize, &image.shape, &.{ 5, 6 }));
+
+    // Check the number of items
+    try testing.expect(image.items.len == 5 * 6);
 }

@@ -89,8 +89,10 @@ if [ $EXTENSION = "zig" ]; then
 
         (
             cd $ROOT_FOLDER
-            zig build --summary all
+            # zig build --summary all
+            zig build
             [ $? -ne 0 ] && exit 1
+            # zig build test --summary all
             zig build test --summary all
             [ $? -ne 0 ] && exit 1
             cat $TEST_FILE_PATH | ./zig-out/bin/day${DAY}_${PART} | tee >(pbcopy)

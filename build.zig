@@ -55,6 +55,11 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("src/ragged_slice.zig"),
     });
 
+    // nd_slice module
+    const nd_slice = b.addModule("nd_slice", .{
+        .root_source_file = b.path("src/nd_slice.zig"),
+    });
+
     // Walk the src directory and find all the files
     const src_dir = b.pathFromRoot("src");
     var dir = try std.fs.openDirAbsolute(src_dir, .{ .iterate = true });
@@ -153,6 +158,7 @@ pub fn build(b: *std.Build) !void {
     while (it.next()) |exe| {
         exe.*.root_module.addImport("stdin", stdin);
         exe.*.root_module.addImport("ragged_slice", ragged_slice);
+        exe.*.root_module.addImport("nd_slice", nd_slice);
     }
 
     // Add all the execs to the install step
