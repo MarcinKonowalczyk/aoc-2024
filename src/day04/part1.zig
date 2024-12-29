@@ -18,7 +18,7 @@ pub fn main() !void {
         return error.InvalidInput;
     }
     const N = shape.@"0";
-    print("N: {d}\n", .{N});
+    // print("N: {d}\n", .{N});
 
     utils.sortDelimiter(in_buffer, '\n');
 
@@ -35,18 +35,34 @@ pub fn main() !void {
         .NDSlice(bool, 2, .row_major)
         .init(.{ N, N }, visited_buffer);
 
+    const count = try find_xmases(N, in, visited);
+
+    // const repr = try utils.slice_2d_repr(bool, alloc, visited.items, .{ N, N });
+    // defer alloc.free(repr);
+
+    // print("{s}\n", .{repr});
+
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("{d}", .{count});
+}
+
+fn find_xmases(
+    N: usize,
+    in: ndslice.NDSlice(u8, 2, .row_major),
+    visited: ndslice.NDSlice(bool, 2, .row_major),
+) !usize {
+    var count: usize = 0;
     for (0..N) |i| {
         for (0..N) |j| {
             const value = try in.at(.{ i, j });
             if (value == 'X') {
-                print("Found X at ({d}, {d})\n", .{ i, j });
                 // Check vertical XMASes
                 if (i + 3 <= N - 1) {
                     if (try in.at(.{ i + 1, j }) == 'M' and
                         try in.at(.{ i + 2, j }) == 'A' and
                         try in.at(.{ i + 3, j }) == 'S')
                     {
-                        print("Found XMAS at ({d}, {d})\n", .{ i, j });
+                        count += 1;
                         try visited.set_at(.{ i, j }, true);
                         try visited.set_at(.{ i + 1, j }, true);
                         try visited.set_at(.{ i + 2, j }, true);
@@ -54,29 +70,105 @@ pub fn main() !void {
                     }
                 }
 
-                // ...
-            }
+                if (i >= 3) {
+                    if (try in.at(.{ i - 1, j }) == 'M' and
+                        try in.at(.{ i - 2, j }) == 'A' and
+                        try in.at(.{ i - 3, j }) == 'S')
+                    {
+                        count += 1;
+                        try visited.set_at(.{ i, j }, true);
+                        try visited.set_at(.{ i - 1, j }, true);
+                        try visited.set_at(.{ i - 2, j }, true);
+                        try visited.set_at(.{ i - 3, j }, true);
+                    }
+                }
 
-            // try visited.set_at(.{ i, j }, true);
-            // print("i: {d}, j: {d}, value: {c}\n", .{ i, j, value });
+                // Check horizontal XMASes
+                if (j + 3 <= N - 1) {
+                    if (try in.at(.{ i, j + 1 }) == 'M' and
+                        try in.at(.{ i, j + 2 }) == 'A' and
+                        try in.at(.{ i, j + 3 }) == 'S')
+                    {
+                        count += 1;
+                        try visited.set_at(.{ i, j }, true);
+                        try visited.set_at(.{ i, j + 1 }, true);
+                        try visited.set_at(.{ i, j + 2 }, true);
+                        try visited.set_at(.{ i, j + 3 }, true);
+                    }
+                }
+
+                if (j >= 3) {
+                    if (try in.at(.{ i, j - 1 }) == 'M' and
+                        try in.at(.{ i, j - 2 }) == 'A' and
+                        try in.at(.{ i, j - 3 }) == 'S')
+                    {
+                        count += 1;
+                        try visited.set_at(.{ i, j }, true);
+                        try visited.set_at(.{ i, j - 1 }, true);
+                        try visited.set_at(.{ i, j - 2 }, true);
+                        try visited.set_at(.{ i, j - 3 }, true);
+                    }
+                }
+
+                // Check diagonal XMASes
+                if (i + 3 <= N - 1 and j + 3 <= N - 1) {
+                    // Down-right
+                    if (try in.at(.{ i + 1, j + 1 }) == 'M' and
+                        try in.at(.{ i + 2, j + 2 }) == 'A' and
+                        try in.at(.{ i + 3, j + 3 }) == 'S')
+                    {
+                        count += 1;
+                        try visited.set_at(.{ i, j }, true);
+                        try visited.set_at(.{ i + 1, j + 1 }, true);
+                        try visited.set_at(.{ i + 2, j + 2 }, true);
+                        try visited.set_at(.{ i + 3, j + 3 }, true);
+                    }
+                }
+
+                if (i >= 3 and j >= 3) {
+                    // Up-left
+                    if (try in.at(.{ i - 1, j - 1 }) == 'M' and
+                        try in.at(.{ i - 2, j - 2 }) == 'A' and
+                        try in.at(.{ i - 3, j - 3 }) == 'S')
+                    {
+                        count += 1;
+                        try visited.set_at(.{ i, j }, true);
+                        try visited.set_at(.{ i - 1, j - 1 }, true);
+                        try visited.set_at(.{ i - 2, j - 2 }, true);
+                        try visited.set_at(.{ i - 3, j - 3 }, true);
+                    }
+                }
+
+                if (i + 3 <= N - 1 and j >= 3) {
+                    // Down-left
+                    if (try in.at(.{ i + 1, j - 1 }) == 'M' and
+                        try in.at(.{ i + 2, j - 2 }) == 'A' and
+                        try in.at(.{ i + 3, j - 3 }) == 'S')
+                    {
+                        count += 1;
+                        try visited.set_at(.{ i, j }, true);
+                        try visited.set_at(.{ i + 1, j - 1 }, true);
+                        try visited.set_at(.{ i + 2, j - 2 }, true);
+                        try visited.set_at(.{ i + 3, j - 3 }, true);
+                    }
+                }
+
+                if (i >= 3 and j + 3 <= N - 1) {
+                    // Up-right
+                    if (try in.at(.{ i - 1, j + 1 }) == 'M' and
+                        try in.at(.{ i - 2, j + 2 }) == 'A' and
+                        try in.at(.{ i - 3, j + 3 }) == 'S')
+                    {
+                        count += 1;
+                        try visited.set_at(.{ i, j }, true);
+                        try visited.set_at(.{ i - 1, j + 1 }, true);
+                        try visited.set_at(.{ i - 2, j + 2 }, true);
+                        try visited.set_at(.{ i - 3, j + 3 }, true);
+                    }
+                }
+            }
         }
     }
 
-    const repr = try utils.slice_2d_repr(bool, alloc, visited.items, .{ N, N });
-    defer alloc.free(repr);
-    print("{s}\n", .{repr});
-
-    // print("0,0: {c}\n", .{try in.at(.{ 0, 0 })});
-    // print("0,2: {c}\n", .{try in.at(.{ 0, 2 })});
-    // print("2,0: {c}\n", .{try in.at(.{ 2, 0 })});
-
-    // var lines_it = stdin.splitLines(in);
-    // var i: usize = 0;
-
-    // while (lines_it.next()) |line| : (i += 1) {
-    //     print("{d}: {s}\n", .{ i, line });
-    // }
-
-    const stdout = std.io.getStdOut().writer();
-    try stdout.print("{d}", .{0});
+    return count;
 }
