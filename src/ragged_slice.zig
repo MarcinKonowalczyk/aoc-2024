@@ -104,6 +104,10 @@ pub fn RaggedSlice(comptime T: type) type {
             return self.buffer_items[try self.lid(index)];
         }
 
+        pub fn put(self: *Self, index: [2]usize, value: T) void {
+            self.buffer_items[try self.lid(index)] = value;
+        }
+
         // Computes the ragged index of an element
         pub fn raggedIndex(self: Self, linear_index: usize) ![2]usize {
             if (runtime_safety) {

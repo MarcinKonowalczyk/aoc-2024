@@ -7,6 +7,8 @@ const utils = @import("utils.zig");
 
 const ndslice = @import("nd_slice");
 
+const VISITED = true;
+
 pub fn main() !void {
     const alloc = std.heap.page_allocator;
 
@@ -26,21 +28,31 @@ pub fn main() !void {
         .NDSlice(u8, 2, .row_major)
         .init(.{ N, N }, in_buffer);
 
-    // Keep track of visited cells
-    const visited_buffer = try alloc.alloc(bool, N * N);
-    defer alloc.free(visited_buffer);
-    @memset(visited_buffer, false);
+    var visited_buffer: ?[]bool = null;
+    if (VISITED) {
+        visited_buffer = try alloc.alloc(bool, N * N);
+        @memset(visited_buffer.?, false);
+    }
+    defer {
+        if (visited_buffer) |buf| {
+            alloc.free(buf);
+        }
+    }
 
-    const visited = try ndslice
-        .NDSlice(bool, 2, .row_major)
-        .init(.{ N, N }, visited_buffer);
+    var visited: ?ndslice.NDSlice(bool, 2, .row_major) = null;
+    if (VISITED) {
+        visited = try ndslice
+            .NDSlice(bool, 2, .row_major)
+            .init(.{ N, N }, visited_buffer.?);
+    }
 
     const count = try find_xmases(N, in, visited);
 
-    // const repr = try utils.slice_2d_repr(bool, alloc, visited.items, .{ N, N });
-    // defer alloc.free(repr);
-
-    // print("{s}\n", .{repr});
+    if (visited) |v| {
+        const repr = try utils.slice_2d_repr(bool, alloc, v.items, .{ N, N });
+        defer alloc.free(repr);
+        print("{s}\n", .{repr});
+    }
 
     const stdout = std.io.getStdOut().writer();
     try stdout.print("{d}", .{count});
@@ -49,8 +61,13 @@ pub fn main() !void {
 fn find_xmases(
     N: usize,
     in: ndslice.NDSlice(u8, 2, .row_major),
-    visited: ndslice.NDSlice(bool, 2, .row_major),
+    visited: ?ndslice.NDSlice(bool, 2, .row_major),
 ) !usize {
+    if (visited) |v| {
+        print("visited: {any}\n", .{v});
+    } else {
+        print("visited: null\n", .{});
+    }
     var count: usize = 0;
     for (0..N) |i| {
         for (0..N) |j| {
@@ -63,10 +80,12 @@ fn find_xmases(
                         try in.at(.{ i + 3, j }) == 'S')
                     {
                         count += 1;
-                        try visited.set_at(.{ i, j }, true);
-                        try visited.set_at(.{ i + 1, j }, true);
-                        try visited.set_at(.{ i + 2, j }, true);
-                        try visited.set_at(.{ i + 3, j }, true);
+                        if (visited) |v| {
+                            try v.put(.{ i, j }, true);
+                            try v.put(.{ i + 1, j }, true);
+                            try v.put(.{ i + 2, j }, true);
+                            try v.put(.{ i + 3, j }, true);
+                        }
                     }
                 }
 
@@ -76,10 +95,12 @@ fn find_xmases(
                         try in.at(.{ i - 3, j }) == 'S')
                     {
                         count += 1;
-                        try visited.set_at(.{ i, j }, true);
-                        try visited.set_at(.{ i - 1, j }, true);
-                        try visited.set_at(.{ i - 2, j }, true);
-                        try visited.set_at(.{ i - 3, j }, true);
+                        if (visited) |v| {
+                            try v.put(.{ i, j }, true);
+                            try v.put(.{ i - 1, j }, true);
+                            try v.put(.{ i - 2, j }, true);
+                            try v.put(.{ i - 3, j }, true);
+                        }
                     }
                 }
 
@@ -90,10 +111,12 @@ fn find_xmases(
                         try in.at(.{ i, j + 3 }) == 'S')
                     {
                         count += 1;
-                        try visited.set_at(.{ i, j }, true);
-                        try visited.set_at(.{ i, j + 1 }, true);
-                        try visited.set_at(.{ i, j + 2 }, true);
-                        try visited.set_at(.{ i, j + 3 }, true);
+                        if (visited) |v| {
+                            try v.put(.{ i, j }, true);
+                            try v.put(.{ i, j + 1 }, true);
+                            try v.put(.{ i, j + 2 }, true);
+                            try v.put(.{ i, j + 3 }, true);
+                        }
                     }
                 }
 
@@ -103,10 +126,12 @@ fn find_xmases(
                         try in.at(.{ i, j - 3 }) == 'S')
                     {
                         count += 1;
-                        try visited.set_at(.{ i, j }, true);
-                        try visited.set_at(.{ i, j - 1 }, true);
-                        try visited.set_at(.{ i, j - 2 }, true);
-                        try visited.set_at(.{ i, j - 3 }, true);
+                        if (visited) |v| {
+                            try v.put(.{ i, j }, true);
+                            try v.put(.{ i, j - 1 }, true);
+                            try v.put(.{ i, j - 2 }, true);
+                            try v.put(.{ i, j - 3 }, true);
+                        }
                     }
                 }
 
@@ -118,10 +143,12 @@ fn find_xmases(
                         try in.at(.{ i + 3, j + 3 }) == 'S')
                     {
                         count += 1;
-                        try visited.set_at(.{ i, j }, true);
-                        try visited.set_at(.{ i + 1, j + 1 }, true);
-                        try visited.set_at(.{ i + 2, j + 2 }, true);
-                        try visited.set_at(.{ i + 3, j + 3 }, true);
+                        if (visited) |v| {
+                            try v.put(.{ i, j }, true);
+                            try v.put(.{ i + 1, j + 1 }, true);
+                            try v.put(.{ i + 2, j + 2 }, true);
+                            try v.put(.{ i + 3, j + 3 }, true);
+                        }
                     }
                 }
 
@@ -132,10 +159,12 @@ fn find_xmases(
                         try in.at(.{ i - 3, j - 3 }) == 'S')
                     {
                         count += 1;
-                        try visited.set_at(.{ i, j }, true);
-                        try visited.set_at(.{ i - 1, j - 1 }, true);
-                        try visited.set_at(.{ i - 2, j - 2 }, true);
-                        try visited.set_at(.{ i - 3, j - 3 }, true);
+                        if (visited) |v| {
+                            try v.put(.{ i, j }, true);
+                            try v.put(.{ i - 1, j - 1 }, true);
+                            try v.put(.{ i - 2, j - 2 }, true);
+                            try v.put(.{ i - 3, j - 3 }, true);
+                        }
                     }
                 }
 
@@ -146,10 +175,12 @@ fn find_xmases(
                         try in.at(.{ i + 3, j - 3 }) == 'S')
                     {
                         count += 1;
-                        try visited.set_at(.{ i, j }, true);
-                        try visited.set_at(.{ i + 1, j - 1 }, true);
-                        try visited.set_at(.{ i + 2, j - 2 }, true);
-                        try visited.set_at(.{ i + 3, j - 3 }, true);
+                        if (visited) |v| {
+                            try v.put(.{ i, j }, true);
+                            try v.put(.{ i + 1, j - 1 }, true);
+                            try v.put(.{ i + 2, j - 2 }, true);
+                            try v.put(.{ i + 3, j - 3 }, true);
+                        }
                     }
                 }
 
@@ -160,10 +191,12 @@ fn find_xmases(
                         try in.at(.{ i - 3, j + 3 }) == 'S')
                     {
                         count += 1;
-                        try visited.set_at(.{ i, j }, true);
-                        try visited.set_at(.{ i - 1, j + 1 }, true);
-                        try visited.set_at(.{ i - 2, j + 2 }, true);
-                        try visited.set_at(.{ i - 3, j + 3 }, true);
+                        if (visited) |v| {
+                            try v.put(.{ i, j }, true);
+                            try v.put(.{ i - 1, j + 1 }, true);
+                            try v.put(.{ i - 2, j + 2 }, true);
+                            try v.put(.{ i - 3, j + 3 }, true);
+                        }
                     }
                 }
             }

@@ -86,17 +86,19 @@ pub fn NDSlice(comptime T: type, comptime N: comptime_int, comptime memory_order
             };
         }
 
+        /// Value at a particular index
         pub fn at(self: Self, index: [N]usize) !T {
             return self.items[try self.lid(index)];
         }
 
-        pub fn set_at(self: Self, index: [N]usize, value: T) !void {
+        /// Set value at a particular index
+        pub fn put(self: Self, index: [N]usize, value: T) !void {
             self.items[try self.lid(index)] = value;
         }
     };
 }
 
-test "Simple Slice" {
+test NDSlice {
     // This creates a 2D slice type we can use to represent images, its a MxN slice of triplets of RGB values
     const ImageSlice = NDSlice([3]u8, 2, .row_major);
 
@@ -111,8 +113,8 @@ test "Simple Slice" {
     image.items[try image.lid(.{ 0, 0 })] = .{ 1, 2, 3 };
     try testing.expect(mem.eql(u8, &image.items[try image.lid(.{ 0, 0 })], &.{ 1, 2, 3 }));
 
-    // You can also use 'set_at', 'at' to get the value at a particular index
-    try image.set_at(.{ 1, 1 }, .{ 50, 50, 50 });
+    // You can also use 'put', 'at' to get the value at a particular index
+    try image.put(.{ 1, 1 }, .{ 50, 50, 50 });
     try testing.expect(mem.eql(u8, &try image.at(.{ 1, 1 }), &.{ 50, 50, 50 }));
 
     // Check the shape
