@@ -1,6 +1,7 @@
 // Multi Dimensional Slices in Zig
 // Sort of akin to ndarrays in Python's numpy
 //
+// Based on:
 // https://gist.github.com/AssortedFantasy/f57ebe9c2b5c71081db345a7372d6a38
 
 const std = @import("std");
@@ -84,6 +85,10 @@ pub fn NDSlice(comptime T: type, comptime N: comptime_int, comptime memory_order
                 },
             };
         }
+
+        pub fn at(self: Self, index: [N]usize) !T {
+            return self.items[try self.lid(index)];
+        }
     };
 }
 
@@ -95,12 +100,16 @@ test "Simple Slice" {
     var image_buffer = [_][3]u8{.{ 0, 0, 0 }} ** 30; // 6x5 image (width X height)
 
     // This slice is created over that buffer.
-    const image = try ImageSlice.init(.{ 5, 6 }, &image_buffer); // By convention height is the first dimension
+    const image = try ImageSlice.init(.{ 5, 6 }, &image_buffer);
 
+    // Use 'lid' to get the linear index of an element and 'items' to access the underlying memory
     try testing.expect(mem.eql(u8, &image.items[try image.lid(.{ 0, 0 })], &.{ 0, 0, 0 }));
     image.items[try image.lid(.{ 0, 0 })] = .{ 1, 2, 3 };
     try testing.expect(mem.eql(u8, &image.items[try image.lid(.{ 0, 0 })], &.{ 1, 2, 3 }));
+
+    // You can also use 'at' to get the value at a particular index
     image.items[try image.lid(.{ 1, 1 })] = .{ 50, 50, 50 };
+    try testing.expect(mem.eql(u8, &try image.at(.{ 1, 1 }), &.{ 50, 50, 50 }));
 
     // Check the shape
     try testing.expect(mem.eql(usize, &image.shape, &.{ 5, 6 }));
